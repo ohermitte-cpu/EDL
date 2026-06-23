@@ -147,7 +147,7 @@ html,body{height:100%;overflow:hidden;background:#f0f4f8;font-family:-apple-syst
       <div id="install-btn-wrap" style="display:none;margin:10px 16px 0">
         <button onclick="doInstall()" class="btn btn-primary" style="margin:0;width:100%">📲 Installer l'application</button>
       </div>
-      <div style="text-align:right;padding:6px 16px 0;font-size:11px;color:var(--gray)">v3</div>
+      <div style="text-align:right;padding:6px 16px 0;font-size:11px;color:var(--gray)">v4</div>
       <div class="stitle">Mes états des lieux</div>
       <div class="card" id="edl-list-card">
         <div class="empty-state" id="empty-msg">
@@ -254,6 +254,15 @@ html,body{height:100%;overflow:hidden;background:#f0f4f8;font-family:-apple-syst
 <div id="toast"></div>
 
 <script>
+window.onerror = function(msg, src, line, col, err) {
+  document.body.innerHTML = '<div style="padding:20px;font-family:sans-serif;color:red">' +
+    '<h2>Erreur JavaScript</h2>' +
+    '<p><b>Message :</b> ' + msg + '</p>' +
+    '<p><b>Ligne :</b> ' + line + '</p>' +
+    '<p><b>Source :</b> ' + src + '</p>' +
+    '</div>';
+  return true;
+};
 // ─── MODÈLE DE PIÈCES ────────────────────────────────────────────────────────
 const TMPL = [
   {nom:"Entrée / couloir",elements:["Sol","Murs","Plafond","Porte d'entrée","Serrure","Interphone","Boîte aux lettres"]},
@@ -316,6 +325,10 @@ function autoSave(){
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',()=>{
+  // Diagnostic de démarrage — affiche une alerte si le JS est bien chargé
+  try {
+    console.log('EDL v4 chargé OK — newEDL:', typeof newEDL, 'renderHome:', typeof renderHome);
+  } catch(e) { console.error('Erreur init:', e); }
   renderHome();
   initSigns();
   // SW désactivé — on désenregistre tout ancien SW au cas où
