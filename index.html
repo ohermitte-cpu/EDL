@@ -103,6 +103,9 @@ html,body{height:100%;overflow:hidden;background:#f0f4f8;font-family:-apple-syst
 .sign-wrap canvas{display:block;width:100%;cursor:crosshair;touch-action:none}
 .sign-clear{position:absolute;top:6px;right:8px;background:none;border:none;font-size:12px;color:var(--red);cursor:pointer;font-weight:600}
 .sign-lbl{text-align:center;padding:7px;font-size:13px;color:var(--gray);font-weight:600}
+.el-chip{display:inline-flex;align-items:center;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid var(--gray-bd);background:var(--gray-pale);color:var(--gray);user-select:none;transition:all .15s}
+.el-chip-on{background:var(--blue-pale);border-color:var(--blue-light);color:var(--blue);font-weight:600}
+.el-chip-custom{background:var(--orange-pale);border-color:var(--orange-bd);color:var(--orange)}
 .spinner{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* EDL LIST */
@@ -133,6 +136,7 @@ html,body{height:100%;overflow:hidden;background:#f0f4f8;font-family:-apple-syst
       <span class="sub" id="tbar-sub"></span>
     </div>
     <button id="save-indicator" style="background:none;border:none;color:rgba(255,255,255,.7);font-size:12px;display:none">💾 Sauvegardé</button>
+    <button id="edit-piece-btn" onclick="showPieceModal(curPiece)" style="display:none;background:rgba(255,255,255,.2);border:none;color:#fff;font-size:13px;font-weight:600;padding:6px 12px;border-radius:20px;cursor:pointer">✏️ Modifier</button>
   </div>
 
   <div id="content">
@@ -493,15 +497,135 @@ function renderPieces(){
   document.getElementById('btn-recap').style.background=done===cur.pieces.length?'var(--green)':'var(--blue)';
 }
 function openPiece(i){ curPiece=i; goScreen('s-piece'); }
+// Éléments prédéfinis par catégorie
+const ELEMENTS_PREDEF = {
+  "Structure": ["Sol","Murs","Plafond","Plinthes"],
+  "Ouvertures": ["Porte","Fenêtre","Volets / stores","Serrure / verrou","Interphone"],
+  "Chauffage & eau": ["Radiateur","Robinetterie","Évier / vasque","Douche / baignoire","Chasse d'eau","Chauffe-eau"],
+  "Électricité": ["Prises électriques","Interrupteurs","Éclairage / ampoules","Tableau électrique"],
+  "Cuisine": ["Plaques de cuisson","Four / micro-ondes","Hotte","Réfrigérateur","Lave-vaisselle","Lave-linge"],
+  "Rangements": ["Placards","Dressing","Cave / cellier"],
+  "Autres": ["Ventilation / VMC","Boîte aux lettres","Revêtement mural","Humidité / traces"],
+};
+
 function addPiece(){
-  const nom=prompt('Nom de la pièce (ex: Chambre 2, Bureau…)');
-  if(!nom) return;
-  cur.pieces.push({nom:nom.trim(),elements:[
-    {nom:'Sol',etat:null,obs:'',photos:[]},{nom:'Murs',etat:null,obs:'',photos:[]},
-    {nom:'Plafond',etat:null,obs:'',photos:[]},{nom:'Fenêtre',etat:null,obs:'',photos:[]},
-    {nom:'Radiateur',etat:null,obs:'',photos:[]},{nom:'Prises / éclairage',etat:null,obs:'',photos:[]}
-  ],obs:'',photos:[]});
-  autoSave(); renderPieces(); toast('Pièce ajoutée ✅');
+  showPieceModal(null);
+}
+
+function showPieceModal(editIdx){
+  const isEdit = editIdx !== null;
+  const piece = isEdit ? cur.pieces[editIdx] : null;
+  const existingEls = isEdit ? piece.elements.map(e=>e.nom) : ['Sol','Murs','Plafond'];
+
+  // Build modal HTML
+  const predefHTML = Object.entries(ELEMENTS_PREDEF).map(([cat,els])=>
+    `<div style="margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">${cat}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${els.map(el=>{
+          const checked = existingEls.includes(el);
+          return `<div class="el-chip${checked?' el-chip-on':''}" data-el="${el}" onclick="toggleChip(this)">${el}</div>`;
+        }).join('')}
+      </div>
+    </div>`
+  ).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'piece-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:flex-end';
+  modal.innerHTML = `
+    <div style="background:#fff;width:100%;max-height:85vh;border-radius:16px 16px 0 0;overflow-y:auto;padding:0 0 24px">
+      <div style="padding:16px;border-bottom:1px solid var(--gray-bd);display:flex;align-items:center">
+        <div style="font-size:17px;font-weight:700;flex:1">${isEdit?'Modifier':'Nouvelle'} pièce</div>
+        <button onclick="closePieceModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--gray)">✕</button>
+      </div>
+      <div style="padding:14px 16px 6px">
+        <label style="font-size:14px;font-weight:600;display:block;margin-bottom:5px">Nom de la pièce</label>
+        <input id="modal-nom" type="text" value="${isEdit?piece.nom:''}" placeholder="Ex : Chambre 2, Bureau, Cellier…"
+          style="width:100%;font-size:16px;padding:11px 13px;border-radius:var(--rs);border:1.5px solid var(--gray-bd);background:var(--gray-pale)">
+      </div>
+      <div style="padding:10px 16px 6px">
+        <label style="font-size:14px;font-weight:600;display:block;margin-bottom:8px">Éléments à contrôler</label>
+        <div id="modal-predef">${predefHTML}</div>
+        <div style="margin-top:10px;border-top:1px solid var(--gray-bd);padding-top:10px">
+          <label style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:5px">Ajouter un élément personnalisé</label>
+          <div style="display:flex;gap:8px">
+            <input id="modal-custom" type="text" placeholder="Ex : Tableau de bord, Alarme…"
+              style="flex:1;font-size:15px;padding:9px 12px;border-radius:var(--rs);border:1.5px solid var(--gray-bd);background:var(--gray-pale)">
+            <button onclick="addCustomEl()" style="background:var(--blue);color:#fff;border:none;border-radius:var(--rs);padding:9px 14px;font-size:20px;cursor:pointer">+</button>
+          </div>
+          <div id="modal-custom-list" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px"></div>
+        </div>
+      </div>
+      <div style="padding:12px 16px 0;display:flex;gap:10px">
+        <button onclick="closePieceModal()" style="flex:1;padding:14px;border-radius:var(--r);border:1.5px solid var(--gray-bd);background:var(--gray-pale);font-size:16px;font-weight:600;cursor:pointer">Annuler</button>
+        <button onclick="savePieceModal(${isEdit?editIdx:'null'})" style="flex:2;padding:14px;border-radius:var(--r);border:none;background:var(--blue);color:#fff;font-size:16px;font-weight:600;cursor:pointer">✅ ${isEdit?'Enregistrer':'Créer la pièce'}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('modal-nom').focus(),100);
+}
+
+function toggleChip(el){
+  el.classList.toggle('el-chip-on');
+}
+
+function addCustomEl(){
+  const input = document.getElementById('modal-custom');
+  const val = input.value.trim();
+  if(!val) return;
+  const list = document.getElementById('modal-custom-list');
+  const chip = document.createElement('div');
+  chip.className = 'el-chip el-chip-on el-chip-custom';
+  chip.setAttribute('data-el', val);
+  chip.onclick = ()=>chip.remove();
+  chip.innerHTML = val + ' <span style="opacity:.6">✕</span>';
+  list.appendChild(chip);
+  input.value = '';
+}
+
+function closePieceModal(){
+  const m = document.getElementById('piece-modal');
+  if(m) m.remove();
+}
+
+function savePieceModal(editIdx){
+  const nom = document.getElementById('modal-nom').value.trim();
+  if(!nom){ alert('Donnez un nom à la pièce'); return; }
+
+  // Collect selected elements from chips
+  const chips = document.querySelectorAll('#piece-modal .el-chip-on');
+  let elements = Array.from(chips).map(c=>c.getAttribute('data-el')).filter(Boolean);
+
+  // Remove duplicates, keep order
+  elements = [...new Set(elements)];
+
+  if(!elements.length){
+    // At minimum add Sol/Murs/Plafond
+    elements = ['Sol','Murs','Plafond'];
+  }
+
+  if(editIdx !== null && editIdx !== undefined){
+    // Edit mode: merge with existing (keep etat/obs/photos for unchanged elements)
+    const oldEls = cur.pieces[editIdx].elements;
+    cur.pieces[editIdx].nom = nom;
+    cur.pieces[editIdx].elements = elements.map(nom=>{
+      const existing = oldEls.find(e=>e.nom===nom);
+      return existing || {nom, etat:null, obs:'', photos:[]};
+    });
+  } else {
+    // New piece
+    cur.pieces.push({
+      nom,
+      elements: elements.map(n=>({nom:n, etat:null, obs:'', photos:[]})),
+      obs:'', photos:[]
+    });
+  }
+
+  closePieceModal();
+  autoSave();
+  renderPieces();
+  toast(editIdx!==null ? 'Pièce modifiée ✅' : 'Pièce créée ✅');
 }
 function delPiece(i){
   if(!confirm('Supprimer la pièce "'+cur.pieces[i].nom+'" ?')) return;
@@ -524,7 +648,7 @@ function renderPieceDetail(){
     <div class="el-row">
       <div class="elname">${el.nom}</div>
       <div class="etat-row">
-        ${['Bon','Usage','Mauvais'].map(v=>`<div class="etat-btn${el.etat===v?' sel-'+v.toLowerCase():''}" onclick="setEtat(${i},'${v}')">${v==='Bon'?'✅':v==='Usage'?'⚠️':'❌'} ${v}</div>`).join('')}
+        ${['Bon','Usage','Mauvais'].map(v=>`<div class="etat-btn${el.etat===v?' sel-'+v.toLowerCase():''}" data-val="${v}" onclick="setEtat(${i},'${v}')">${v==='Bon'?'✅':v==='Usage'?'⚠️':'❌'} ${v}</div>`).join('')}
       </div>
       <input class="el-obs" type="text" placeholder="Observation…" value="${el.obs||''}" oninput="cur.pieces[curPiece].elements[${i}].obs=this.value;autoSave()">
     </div>`).join('');
@@ -536,9 +660,8 @@ function setEtat(i,v){
   const rows=document.querySelectorAll('.el-row');
   if(!rows[i]) return;
   rows[i].querySelectorAll('.etat-btn').forEach(b=>{
-    b.className='etat-btn';
-    const label=b.textContent.replace(/[✅⚠️❌] /,'');
-    if(label===v) b.className='etat-btn sel-'+v.toLowerCase();
+    const bv=b.getAttribute('data-val');
+    b.className='etat-btn'+(bv===v?' sel-'+v.toLowerCase():'');
   });
 }
 function renderPhotos(){
