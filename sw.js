@@ -1,4 +1,4 @@
-const CACHE = 'edl-v3';
+const CACHE = 'edl-v6';
 const ASSETS = ['./index.html', './manifest.json'];
 
 // Install: cache assets
