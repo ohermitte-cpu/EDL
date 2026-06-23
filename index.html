@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-title" content="État des lieux">
 <title>État des lieux</title>
 <link rel="manifest" href="manifest.json">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -315,10 +318,11 @@ function autoSave(){
 window.addEventListener('DOMContentLoaded',()=>{
   renderHome();
   initSigns();
+  // SW désactivé — on désenregistre tout ancien SW au cas où
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').then(reg=>{
-      reg.update(); // check for SW updates on every load
-    }).catch(()=>{});
+    navigator.serviceWorker.getRegistrations().then(regs=>{
+      regs.forEach(r=>r.unregister());
+    });
   }
   setupInstall();
 });
@@ -414,7 +418,7 @@ function goBack(){
 }
 function navTo(id,n){
   document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',i===n));
-  if(id!=='s-home'&&!cur){ toast('Créez d\'abord un état des lieux'); return; }
+  if(id!=='s-home'&&!cur){ toast("Créez d'abord un état des lieux"); return; }
   goScreen(id);
 }
 
@@ -685,40 +689,36 @@ function infoRow(doc,key,val,y,M,CW){ doc.setFont('helvetica','bold'); doc.setFo
 // ─── INSTALLATION PWA ────────────────────────────────────────────────────────
 let deferredPrompt = null;
 function setupInstall(){
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isAndroid = /android/i.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
+  const isAndroid = /android/i.test(ua);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  if(isStandalone) return; // already installed
-
+  if(isStandalone) return;
+  const tip = document.getElementById('install-tip');
+  const tipText = document.getElementById('install-tip-text');
   if(isIOS){
-    document.getElementById('install-tip').style.display='block';
-    document.getElementById('install-tip-text').innerHTML =
-      'Dans Safari, appuyez sur <strong>⬆️ Partager</strong> puis <strong>"Sur l'écran d'accueil"</strong>.';
+    tip.style.display='block';
+    tipText.innerHTML = "Dans Safari : bouton Partager ⬆️, puis <strong>Sur l'écran d'accueil</strong>.";
   } else if(isAndroid){
-    // Show generic tip immediately; enhance if beforeinstallprompt fires
-    document.getElementById('install-tip').style.display='block';
-    document.getElementById('install-tip-text').innerHTML =
-      'Dans Chrome, appuyez sur <strong>⋮ Menu</strong> (3 points en haut à droite) puis <strong>"Ajouter à l'écran d'accueil"</strong> ou <strong>"Installer l'application"</strong>.';
+    tip.style.display='block';
+    tipText.innerHTML = "Dans Chrome : Menu ⋮ (3 points), puis <strong>Ajouter à l'écran d'accueil</strong>.";
   }
-
-  window.addEventListener('beforeinstallprompt', e=>{
+  window.addEventListener('beforeinstallprompt', function(e){
     e.preventDefault();
     deferredPrompt = e;
-    // Replace tip with a real install button
-    document.getElementById('install-tip').style.display='none';
+    tip.style.display='none';
     document.getElementById('install-btn-wrap').style.display='block';
   });
-
-  window.addEventListener('appinstalled', ()=>{
-    document.getElementById('install-tip').style.display='none';
+  window.addEventListener('appinstalled', function(){
+    tip.style.display='none';
     document.getElementById('install-btn-wrap').style.display='none';
-    toast('✅ Application installée !');
+    toast('Application installée !');
   });
 }
 function doInstall(){
   if(!deferredPrompt) return;
   deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(()=>{ deferredPrompt=null; document.getElementById('install-btn-wrap').style.display='none'; });
+  deferredPrompt.userChoice.then(function(){ deferredPrompt=null; document.getElementById('install-btn-wrap').style.display='none'; });
 }
 
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
