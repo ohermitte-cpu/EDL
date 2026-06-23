@@ -144,6 +144,7 @@ html,body{height:100%;overflow:hidden;background:#f0f4f8;font-family:-apple-syst
       <div id="install-btn-wrap" style="display:none;margin:10px 16px 0">
         <button onclick="doInstall()" class="btn btn-primary" style="margin:0;width:100%">📲 Installer l'application</button>
       </div>
+      <div style="text-align:right;padding:6px 16px 0;font-size:11px;color:var(--gray)">v3</div>
       <div class="stitle">Mes états des lieux</div>
       <div class="card" id="edl-list-card">
         <div class="empty-state" id="empty-msg">
@@ -314,7 +315,11 @@ function autoSave(){
 window.addEventListener('DOMContentLoaded',()=>{
   renderHome();
   initSigns();
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      reg.update(); // check for SW updates on every load
+    }).catch(()=>{});
+  }
   setupInstall();
 });
 
@@ -347,15 +352,19 @@ function renderHome(){
 }
 
 function newEDL(type){
-  cur = {
-    id: Date.now().toString(),
-    type, date: new Date().toISOString(),
-    adresse:'', bailleur:'', locnom:'', loctel:'', locemail:'',
-    eau:'', elec:'', cles:'2', cles_obs:'',
-    pieces: freshPieces(),
-  };
-  saveCurrentEDL();
-  goScreen('s-infos');
+  try{
+    cur = {
+      id: Date.now().toString(),
+      type, date: new Date().toISOString(),
+      adresse:'', bailleur:'', locnom:'', loctel:'', locemail:'',
+      eau:'', elec:'', cles:'2', cles_obs:'',
+      pieces: freshPieces(),
+    };
+    saveCurrentEDL();
+    goScreen('s-infos');
+  } catch(err){
+    alert('Erreur au démarrage : '+err.message+' — Essayez de vider le cache Chrome (Menu > Paramètres > Confidentialité > Effacer les données)');
+  }
 }
 
 function openEDL(id){
