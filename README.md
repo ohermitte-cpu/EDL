@@ -1,1 +1,1 @@
-# edl-nancy
+# EDL
