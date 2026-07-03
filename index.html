@@ -176,6 +176,11 @@ html,body{height:100%;overflow:hidden;background:#f0f4f8;font-family:-apple-syst
       <div class="stitle">Bien loué</div>
       <div class="field"><label>Adresse complète</label><input type="text" id="f-adresse" placeholder="Ex : 15, rue de la Paix – 54000 Nancy"></div>
       <div class="field"><label>Bailleur</label><input type="text" id="f-bailleur" placeholder="Nom du propriétaire"></div>
+      <div class="field">
+        <label>Date de l'état des lieux</label>
+        <input type="date" id="f-date">
+        <div class="hint">Laissez vide pour utiliser la date du jour</div>
+      </div>
       <div class="stitle">Locataire(s)</div>
       <div class="field"><label>Nom et prénom</label><input type="text" id="f-locnom" placeholder="Ex : MARTIN Jean"></div>
       <div class="field"><label>Téléphone</label><input type="tel" id="f-loctel" placeholder="06 xx xx xx xx"></div>
@@ -351,7 +356,7 @@ function renderHome(){
     const ico = e.type==='entree'?'🔑':'🚪';
     const bg  = e.type==='entree'?'#EBF5FB':'#FDEBD0';
     const done= e.pieces.filter(p=>p.elements.every(x=>x.etat)).length;
-    const d   = new Date(e.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+    const d   = e.dateEdl ? new Date(e.dateEdl+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}) : new Date(e.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
     return `<div class="edl-item" onclick="openEDL('${e.id}')">
       <div class="edl-ico" style="background:${bg}">${ico}</div>
       <div class="edl-info">
@@ -434,13 +439,13 @@ function navTo(id,n){
 function fillInfosForm(){
   if(!cur) return;
   const f=(id,val)=>{ const el=document.getElementById(id); if(el) el.value=val||''; };
-  f('f-adresse',cur.adresse); f('f-bailleur',cur.bailleur);
+  f('f-adresse',cur.adresse); f('f-bailleur',cur.bailleur); f('f-date',cur.dateEdl||'');
   f('f-locnom',cur.locnom);   f('f-loctel',cur.loctel);   f('f-locemail',cur.locemail);
   f('f-eau',cur.eau);         f('f-elec',cur.elec);
   f('f-cles',cur.cles||'2'); f('f-cles-obs',cur.cles_obs);
 
   // Sauvegarde auto sur chaque frappe
-  ['f-adresse','f-bailleur','f-locnom','f-loctel','f-locemail','f-eau','f-elec','f-cles','f-cles-obs'].forEach(id=>{
+  ['f-adresse','f-bailleur','f-date','f-locnom','f-loctel','f-locemail','f-eau','f-elec','f-cles','f-cles-obs'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.oninput=()=>{ readInfosToState(); autoSave(); };
   });
@@ -448,6 +453,7 @@ function fillInfosForm(){
 function readInfosToState(){
   if(!cur) return;
   cur.adresse   = document.getElementById('f-adresse').value.trim();
+  cur.dateEdl   = document.getElementById('f-date').value;
   cur.bailleur  = document.getElementById('f-bailleur').value.trim();
   cur.locnom    = document.getElementById('f-locnom').value.trim();
   cur.loctel    = document.getElementById('f-loctel').value.trim();
@@ -677,7 +683,10 @@ function savePiece(){ saveCurrentEDL(); toast('Pièce enregistrée ✅'); goBack
 // ─── RÉCAP ────────────────────────────────────────────────────────────────────
 function renderRecap(){
   if(!cur) return;
-  const d=new Date(cur.date).toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const dateStr = cur.dateEdl
+    ? new Date(cur.dateEdl+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'})
+    : new Date(cur.date).toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const d = dateStr;
   const done=cur.pieces.filter(p=>p.elements.every(e=>e.etat)).length;
   const nph=cur.pieces.reduce((a,p)=>a+p.photos.length+p.elements.reduce((b,e)=>b+e.photos.length,0),0);
   document.getElementById('recap-rows').innerHTML=[
@@ -737,7 +746,10 @@ async function genPDF(){
     doc.setFontSize(11); doc.setFont('helvetica','normal');
     doc.text(cur.adresse||'',W/2,22,{align:'center'});
     doc.setFontSize(10);
-    doc.text(new Date(cur.date).toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'}),W/2,29,{align:'center'});
+    const pdfDate = cur.dateEdl
+      ? new Date(cur.dateEdl+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'})
+      : new Date(cur.date).toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    doc.text(pdfDate,W/2,29,{align:'center'});
     y=40;
     doc.setTextColor(0,0,0);
     secTitle(doc,'PARTIES',y); y+=8;
