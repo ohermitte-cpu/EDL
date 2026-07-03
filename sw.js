@@ -1,31 +1,31 @@
-const CACHE = 'edl-v6';
-const ASSETS = ['./index.html', './manifest.json'];
+// Service worker ultra-simple — hors-ligne uniquement
+// PAS besoin de changer ce fichier à chaque mise à jour de l'app
+const CACHE = 'edl-cache';
 
-// Install: cache assets
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-  self.skipWaiting(); // activate immediately
+  self.skipWaiting();
 });
 
-// Activate: delete all old caches
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim()) // take control immediately
-  );
+  e.waitUntil(self.clients.claim());
 });
 
-// Fetch: network first, fallback to cache
+// Stratégie : réseau d'abord, cache uniquement si hors-ligne
 self.addEventListener('fetch', e => {
+  // Ne pas intercepter les requêtes non-GET
+  if(e.request.method !== 'GET') return;
+  
   e.respondWith(
     fetch(e.request)
       .then(res => {
-        // Update cache with fresh response
+        // Mettre en cache la réponse fraîche
         const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
+        caches.open(CACHE).then(cache => cache.put(e.request, clone));
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(() => {
+        // Hors-ligne : servir depuis le cache
+        return caches.match(e.request);
+      })
   );
 });
